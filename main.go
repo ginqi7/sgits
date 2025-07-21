@@ -10,6 +10,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log.Println(req.Method, req.RequestURI)
+	checkRepo(w, req)
 	spawn(w, req)
 }
 

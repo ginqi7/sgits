@@ -2,8 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/cgi"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 func unauthorized(w http.ResponseWriter, reason string) {
@@ -38,6 +43,53 @@ func auth(w http.ResponseWriter, req *http.Request) bool {
 	}
 
 	return true
+}
+
+func checkRepo(w http.ResponseWriter, req *http.Request) {
+	root := config.Root
+	path := req.URL.Path
+	segments := strings.Split(path, "/")
+	repoName := segments[1]
+	directory := root + "/" + repoName
+	absDir, err := filepath.Abs(directory)
+	if err != nil {
+		log.Fatalf("%v", err)
+		return
+	}
+	info, err := os.Stat(absDir)
+	if os.IsNotExist(err) {
+		log.Printf("Repository directory :%s is not exist.", absDir)
+		createRepo(absDir)
+		return
+	}
+
+	if !info.IsDir() {
+		log.Printf("Repository directory :%s is not a directory.", absDir)
+		cmd := exec.Command("rm", absDir)
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("Error: %v\n", err)
+			log.Printf("Output: %s\n", output)
+			return
+		}
+		log.Printf("Delete file: %s\n", absDir)
+
+		createRepo(absDir)
+		return
+	}
+}
+
+func createRepo(absDir string) {
+	cmd := exec.Command("git", "init", "--bare", absDir)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		log.Printf("Output: %s\n", output)
+		return
+	}
+	log.Printf("Success! Output: %s\n", output)
 }
 
 func spawn(w http.ResponseWriter, req *http.Request) {
